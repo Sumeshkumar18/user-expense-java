@@ -20,5 +20,7 @@ public interface ExpenseService {
 
 	ExpenseDto updateExpense(ExpenseDto expenseDto, String id);
 
+	byte[] downloadExpenseDetails(List<ExpenseDto> expenseDtoList) throws Exception;
+
 
 }

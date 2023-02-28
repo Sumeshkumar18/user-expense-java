@@ -1,12 +1,23 @@
 package com.learning.backend.ServiceImpl;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.io.output.ByteArrayOutputStream;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ResourceLoader;
 import org.springframework.stereotype.Service;
 
+import com.learning.backend.UserExpenseDefaultMethods;
 import com.learning.backend.Dto.ExpenseDto;
 import com.learning.backend.Entity.Category;
 import com.learning.backend.Entity.Expense;
@@ -16,8 +27,11 @@ import com.learning.backend.Repository.ExpenseRepository;
 import com.learning.backend.Repository.UserRepository;
 import com.learning.backend.Service.ExpenseService;
 
+
 @Service
 public class ExpenceServiceImpl implements ExpenseService{
+	
+	private static final Logger logger = LoggerFactory.getLogger(ExpenceServiceImpl.class);
 	
 	@Autowired
 	ExpenseRepository expenseRepository;
@@ -28,6 +42,9 @@ public class ExpenceServiceImpl implements ExpenseService{
 	@Autowired
 	UserRepository userRepository;
 
+	@Autowired
+	ResourceLoader resourceLoader;
+	
 	@Override
 	public ExpenseDto addExpense(ExpenseDto expenseDto,String userId) {
 		
@@ -138,6 +155,44 @@ public class ExpenceServiceImpl implements ExpenseService{
 	public ExpenseDto getExpenseById(String id) {
 		Expense expense = expenseRepository.findById(Long.parseLong(id)).orElse(null);
 		return expense != null ? this.getExpenseDto(expense) : new ExpenseDto();
+	}
+
+	@Override
+	public byte[] downloadExpenseDetails(List<ExpenseDto> expenseDtoList) throws Exception {
+		
+		File file = resourceLoader.getResource("classpath:excel-templates/expense_details.xlsx").getFile();
+		try  (Workbook expenseDetailsWB = new XSSFWorkbook(file)) {
+			
+			Sheet sheet = expenseDetailsWB.getSheetAt(0);
+			UserExpenseDefaultMethods.cleanSheet(sheet);
+			int rowNum = 2;
+			for (ExpenseDto expenseDto : expenseDtoList) {
+				
+				Row dataRow = sheet.createRow(rowNum);
+				
+				Cell slNo = dataRow.createCell(0);
+				slNo.setCellValue(rowNum - 1);
+				
+				dataRow.createCell(1).setCellValue(expenseDto.getExpDate().toString());
+				dataRow.createCell(2).setCellValue(expenseDto.getCategory());
+				dataRow.createCell(3).setCellValue(expenseDto.getAmount());
+				dataRow.createCell(4).setCellValue(expenseDto.getDescription());
+				dataRow.createCell(5).setCellValue("");
+				
+				rowNum++;
+			}
+			
+			ByteArrayOutputStream outputSream = new ByteArrayOutputStream();
+			expenseDetailsWB.write(outputSream);
+			
+			expenseDetailsWB.close();
+			
+			return outputSream.toByteArray();
+		} catch (Exception ex) {
+			
+			logger.error("Error during Expense Details download file");
+			return null;
+		}	
 	}
 
 }
